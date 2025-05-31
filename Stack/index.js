@@ -4,27 +4,29 @@ const fetch = require('node-fetch');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const fs = require('fs');
+const path = require('path');
+
 
 dotenv.config();
+console.log("Using MONGO_URI =", process.env.MONGO_URI);
 
 const app = express();
 const PORT = 3000;
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public')); // serves your frontend (index.html, CSS, etc.)
+const clientPath = path.join(__dirname, '..', 'client');
+app.use(express.static(clientPath));
 const { MongoClient } = require('mongodb');
 
 const uri = process.env.MONGO_URI; // Store your MongoDB URI in .env
 const client = new MongoClient(uri);
 let db;
 
-async function connectToDB() {
-  await client.connect();
-  db = client.db('Data'); // or any name you prefer
-  console.log('✅ Connected to MongoDB');
-}
-connectToDB();
+
+
+
+
 
 app.get('/api/match-history', (req, res) => {
   const rawData = fs.readFileSync('./data/match.json'); // adjust path
@@ -88,23 +90,25 @@ app.get('/api/matches/:puuid', async (req, res) => {
   const count = req.query.count || 20;
 
   try {
-    const response = await fetch(
+    const matchIdRes = await fetch(
       `https://americas.api.riotgames.com/lol/match/v5/matches/by-puuid/${puuid}/ids?start=0&count=${count}`,
       {
         headers: { 'X-Riot-Token': process.env.RIOT_API_KEY },
       }
     );
 
-    const matchIds = await response.json();
+    const matchIds = await matchIdRes.json();
+    const matchDetails = [];
 
-    // Fetch match details in parallel
-    const matchDetails = await Promise.all(
-      matchIds.map(id =>
-        fetch(`https://americas.api.riotgames.com/lol/match/v5/matches/${id}`, {
-          headers: { 'X-Riot-Token': process.env.RIOT_API_KEY },
-        }).then(res => res.json())
-      )
-    );
+    for (const id of matchIds) {
+      try {
+        const response = await fetch(`http://localhost:3000/api/match/${id}`);
+        const data = await response.json();
+        matchDetails.push(data);
+      } catch (err) {
+        console.error(`⚠️ Failed to fetch match ${id}:`, err.message);
+      }
+    }
 
     const filteredMatches = req.query.mode
       ? matchDetails.filter(m => m.info.gameMode === req.query.mode)
@@ -117,6 +121,8 @@ app.get('/api/matches/:puuid', async (req, res) => {
   }
 });
 
+
+
 /**
  * Route 3: Get Match Details from Match ID
  */
@@ -124,22 +130,20 @@ app.get('/api/match/:matchId', async (req, res) => {
   const { matchId } = req.params;
 
   try {
-    const cached = await db.collection('matches').findOne({ matchId });
+    const cached = await db.collection('matchData').findOne({ matchId });
     if (cached) {
-      console.log('🔁 Returning cached match');
+      console.log(`🔁 Returning cached match: ${matchId}`);
       return res.json(cached.data);
     }
 
+    console.log(`🌐 Fetching from API: ${matchId}`);
     const response = await fetch(
       `https://americas.api.riotgames.com/lol/match/v5/matches/${matchId}`,
       { headers: { 'X-Riot-Token': process.env.RIOT_API_KEY } }
     );
-
     const data = await response.json();
 
-    // Cache match in MongoDB
     await db.collection('matchData').insertOne({ matchId, data });
-
 
     res.json(data);
   } catch (err) {
@@ -149,6 +153,20 @@ app.get('/api/match/:matchId', async (req, res) => {
 });
 
 
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
+// connect to MongoDB, then start Express
+async function startServer() {
+  try {
+    await client.connect();
+    db = client.db('matchData');
+    console.log('✅ Connected to MongoDB');
+
+    app.listen(PORT, () =>
+      console.log(`Server running on http://localhost:${PORT}`)
+    );
+  } catch (err) {
+    console.error('❌ MongoDB connection failed:', err.message);
+    process.exit(1);
+  }
+}
+
+startServer();
