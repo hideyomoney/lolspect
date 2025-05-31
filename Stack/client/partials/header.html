@@ -1,0 +1,21 @@
+<!-- client/partials/header.html -->
+<h1>LOLSpect</h1>
+<select id="gameModeSelect">
+  <option value="">All Modes</option>
+  <option value="CLASSIC">Normal</option>
+  <option value="RANKED_SOLO_5x5">Ranked</option>
+  <option value="RANKED_FLEX_SR">Flex Ranked</option>
+  <option value="ARAM">ARAM</option>
+</select>
+
+<input
+  type="number"
+  id="gameCount"
+  placeholder="Number of Games"
+  min="1"
+  max="50"
+  value="10"
+/>
+
+<input id="riotId" placeholder="Enter Riot ID (e.g. lolarmon1#NA1)" />
+<button onclick="fetchMatchStats()">Search</button>
