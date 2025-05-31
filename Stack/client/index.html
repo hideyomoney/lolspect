@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>LOLSpect</title>
+
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+
+  <body>
+    <div id="header"></div>
+
+    <div id="predictPanel"></div>
+
+    <div id="dashboard"></div>
+
+    <script>
+      // Load header.html
+      fetch("partials/header.html")
+        .then((r) => r.text())
+        .then((html) => (document.getElementById("header").innerHTML = html))
+        .catch((err) => console.error("Error loading header.html:", err));
+
+      // Load predict.html
+      fetch("partials/predict.html")
+        .then((r) => r.text())
+        .then(
+          (html) => (document.getElementById("predictPanel").innerHTML = html)
+        )
+        .catch((err) => console.error("Error loading predict.html:", err));
+      // Load dashboard.html
+      fetch("partials/dashboard.html")
+        .then((r) => r.text())
+        .then((html) => (document.getElementById("dashboard").innerHTML = html))
+        .catch((err) => console.error("Error loading dashboard.html:", err));
+    </script>
+    <script src="js/main.js" defer></script>
+  </body>
+</html>
